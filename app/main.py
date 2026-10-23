@@ -13,7 +13,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .backends import make_backend
+from .backends import BACKEND_ERRORS, AutoBackend, Image, Reply, make_backend
 from .config import ROOT, settings
 from .core import fabric_core
 from .store import Store
@@ -27,10 +27,9 @@ store = Store(settings.data_dir)
 
 
 async def _warm_up() -> None:
-    """Load the model into memory at startup so the first demo photo is not slow."""
     try:
-        await backend.generate("Reply with OK.")
-    except (httpx.HTTPError, KeyError):
+        await backend.warm_up()
+    except BACKEND_ERRORS:
         pass
 
 
@@ -52,8 +51,17 @@ def _check_roll_id(roll_id: str) -> str:
     return roll_id
 
 
-def _model_label() -> str:
-    return f"{backend.name}:{backend.model}"
+async def ask_json(prompt: str, image: Image | None = None, schema: dict | None = None) -> tuple[dict, Reply]:
+    """Ask Gemma 4 for JSON. In auto mode, an unreadable Gemini answer is retried offline."""
+    reply = await backend.generate(prompt, image, schema)
+    try:
+        return fabric_core.parse_model_json(reply.text), reply
+    except ValueError:
+        if not (isinstance(backend, AutoBackend) and reply.model.startswith("gemini:")):
+            raise
+    reply = await backend.fallback.generate(prompt, image, schema)
+    reply.fallback_reason = "Gemini API reply was not valid JSON, answered offline"
+    return fabric_core.parse_model_json(reply.text), reply
 
 
 @app.get("/")
@@ -63,7 +71,7 @@ async def index() -> FileResponse:
 
 @app.get("/api/health")
 async def health() -> dict:
-    return {"backend": backend.name, "model": backend.model, **await backend.health()}
+    return await backend.health()
 
 
 @app.post("/api/inspect")
@@ -86,10 +94,8 @@ async def inspect(
 
     started = time.perf_counter()
     try:
-        reply = await backend.generate(
-            fabric_core.build_prompt(frame_cm), (data, mime), fabric_core.RESPONSE_SCHEMA
-        )
-        result = fabric_core.normalize(fabric_core.parse_model_json(reply))
+        raw, reply = await ask_json(fabric_core.build_prompt(frame_cm), (data, mime), fabric_core.RESPONSE_SCHEMA)
+        result = fabric_core.normalize(raw)
     except httpx.HTTPError as exc:
         raise HTTPException(502, f"Gemma 4 call failed: {exc}") from exc
     except (ValueError, KeyError) as exc:
@@ -97,8 +103,14 @@ async def inspect(
     latency_ms = int((time.perf_counter() - started) * 1000)
 
     store.upsert_roll(roll_id, width_cm, length_m)
-    inspection_id = store.add_inspection(roll_id, data, IMAGE_TYPES[mime], result, _model_label(), latency_ms)
-    return {"id": inspection_id, "latency_ms": latency_ms, "model": _model_label(), **result}
+    inspection_id = store.add_inspection(roll_id, data, IMAGE_TYPES[mime], result, reply.model, latency_ms)
+    return {
+        "id": inspection_id,
+        "latency_ms": latency_ms,
+        "model": reply.model,
+        "fallback_reason": reply.fallback_reason,
+        **result,
+    }
 
 
 @app.get("/api/rolls/{roll_id}")
@@ -132,7 +144,7 @@ Defects: {defects}"""
 async def report(roll_id: str, ai: bool = True) -> dict:
     roll = await get_roll(roll_id)
     summary = roll["summary"]
-    result = {**summary, "written_by": "template"}
+    result = {**summary, "written_by": "template", "fallback_reason": ""}
     if not ai:
         return result
 
@@ -146,9 +158,12 @@ async def report(roll_id: str, ai: bool = True) -> dict:
         defects=json.dumps(defects, ensure_ascii=False),
     )
     try:
-        note = fabric_core.parse_model_json(await backend.generate(prompt))
+        note, reply = await ask_json(prompt)
         if note.get("english") and note.get("urdu"):
-            result.update(english=note["english"], urdu=note["urdu"], written_by=_model_label())
-    except (httpx.HTTPError, ValueError, KeyError):
+            result.update(
+                english=note["english"], urdu=note["urdu"],
+                written_by=reply.model, fallback_reason=reply.fallback_reason,
+            )
+    except BACKEND_ERRORS:
         pass  # the deterministic template is already in `result`
     return result

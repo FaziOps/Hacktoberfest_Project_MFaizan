@@ -24,13 +24,24 @@ async function api(path, options) {
   return body;
 }
 
+// "gemini:gemma-4-26b-a4b-it" -> { kind: "gemini", text: "Gemini API · gemma-4-26b-a4b-it" }
+function source(model) {
+  const [kind, ...rest] = (model || "").split(":");
+  const name = rest.join(":");
+  if (kind === "gemini") return { kind, text: `Gemini API · ${name}` };
+  if (kind === "ollama") return { kind, text: `Offline · ${name}` };
+  return { kind: "other", text: model || "" };
+}
+
 async function checkHealth() {
   const status = $("status");
   try {
     const h = await api("/api/health");
-    status.className = `status ${h.ok ? "ok" : "err"}`;
-    const where = h.backend === "ollama" ? "local · offline" : "Gemini API";
-    $("status-text").textContent = h.ok ? `${h.model} · ${where}` : h.detail;
+    // Auto mode running on the fallback only is usable but worth flagging.
+    const degraded = h.ok && h.backend === "auto" && !h.backends[0].ok;
+    status.className = `status ${!h.ok ? "err" : degraded ? "warn" : "ok"}`;
+    status.title = (h.backends || [h]).map((b) => `${b.backend}: ${b.detail}`).join("\n");
+    $("status-text").textContent = h.backend === "auto" ? h.detail : `${source(`${h.backend}:${h.model}`).text}`;
   } catch (err) {
     status.className = "status err";
     $("status-text").textContent = err.message;
@@ -80,6 +91,7 @@ async function inspect(blob, filename = "capture.jpg") {
     const result = await api("/api/inspect", { method: "POST", body: form });
     renderResult(result, URL.createObjectURL(blob));
     await loadRoll();
+    checkHealth();
   } catch (err) {
     els.result.className = "result";
     els.result.innerHTML = `<p class="warning">${escapeHtml(err.message)}</p>`;
@@ -95,7 +107,8 @@ const QUALITY_WARNINGS = {
 };
 
 function renderResult(r, imageUrl) {
-  els.latency.textContent = `${(r.latency_ms / 1000).toFixed(1)} s · ${r.model}`;
+  const src = source(r.model);
+  els.latency.innerHTML = `${(r.latency_ms / 1000).toFixed(1)} s <span class="badge ${src.kind}">${escapeHtml(src.text)}</span>`;
   const warning = QUALITY_WARNINGS[r.image_quality];
   const defects = r.defects.length
     ? `<ul class="defects">${r.defects.map((d) => `
@@ -115,6 +128,7 @@ function renderResult(r, imageUrl) {
       <div>
         <p>${escapeHtml(r.fabric) || "Fabric"}</p>
         ${warning ? `<p class="warning">${warning}</p>` : ""}
+        ${r.fallback_reason ? `<p class="fallback">${escapeHtml(r.fallback_reason)}</p>` : ""}
         <p><strong>${r.points}</strong> penalty points in this photo</p>
       </div>
     </div>
@@ -159,7 +173,8 @@ async function writeReport() {
     $("report-en").textContent = r.english;
     $("report-by").textContent = r.written_by === "template"
       ? "Written from the inspection log (model unavailable)"
-      : `Written by ${r.written_by} from the inspection log`;
+      : `Written by Gemma 4 (${source(r.written_by).text}) from the inspection log`
+        + (r.fallback_reason ? `. ${r.fallback_reason}` : "");
     els.report.hidden = false;
     $("print-btn").hidden = false;
   } catch (err) {

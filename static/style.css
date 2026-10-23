@@ -63,7 +63,16 @@ h2 { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacin
 }
 .status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
 .status.ok .dot { background: var(--good); }
+.status.warn .dot { background: var(--warn); }
 .status.err .dot { background: var(--bad); }
+
+.badge {
+  display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; border: 1px solid var(--border); white-space: nowrap;
+}
+.badge.gemini { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.badge.ollama { background: var(--surface-2); color: var(--text); }
+.fallback { color: var(--warn) !important; font-size: 12px !important; }
 
 .layout {
   display: grid; gap: 16px; padding: 16px 24px 32px; max-width: 1280px; margin: 0 auto;

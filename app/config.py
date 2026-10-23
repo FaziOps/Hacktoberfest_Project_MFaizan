@@ -24,7 +24,7 @@ _load_dotenv(ROOT / ".env")
 
 @dataclass(frozen=True)
 class Settings:
-    backend: str = os.environ.get("BACKEND", "ollama")
+    backend: str = os.environ.get("BACKEND", "auto")
     ollama_url: str = os.environ.get("OLLAMA_URL", "http://localhost:11434")
     ollama_model: str = os.environ.get("OLLAMA_MODEL", "gemma4:latest")
     gemini_api_key: str = os.environ.get("GEMINI_API_KEY", "")
