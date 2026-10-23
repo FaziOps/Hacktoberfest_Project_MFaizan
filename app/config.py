@@ -29,6 +29,8 @@ class Settings:
     ollama_model: str = os.environ.get("OLLAMA_MODEL", "gemma4:latest")
     gemini_api_key: str = os.environ.get("GEMINI_API_KEY", "")
     gemini_model: str = os.environ.get("GEMINI_MODEL", "gemma-4-26b-a4b-it")
+    # Comma-separated Gemma 4 models to alternate with when the main one errors.
+    gemini_fallback_models: str = os.environ.get("GEMINI_FALLBACK_MODELS", "gemma-4-31b-it")
     data_dir: Path = Path(os.environ.get("DATA_DIR", ROOT / "data"))
 
 

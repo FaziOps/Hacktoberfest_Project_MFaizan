@@ -46,7 +46,8 @@ Gemma 4 is an open-weight AI model from Google that understands both images and 
 ### Where Gemma 4 runs: Gemini API first, offline fallback
 
 By default (`BACKEND=auto`) the app calls **Gemma 4 through the Gemini API** (`gemma-4-26b-a4b-it`).
-If the API cannot answer (no internet, a bad key, rate limiting, or a reply that is not valid JSON),
+The hosted Gemma endpoints sometimes return server errors or hang under load, so each call is retried
+with a short timeout, alternating with `gemma-4-31b-it`. If the API still cannot answer (no internet, a bad key, rate limiting, or a reply that is not valid JSON),
 the same request goes to **Gemma 4 running on the laptop** through [Ollama](https://ollama.com)
 (`gemma4:latest`, 8.1B parameters). A mill floor with patchy Wi-Fi keeps working.
 
@@ -114,6 +115,7 @@ Set these in `.env`:
 | `BACKEND` | `auto` | `auto` (Gemini API, offline fallback), `gemini` (API only) or `ollama` (offline only) |
 | `GEMINI_API_KEY` | | key from [Google AI Studio](https://aistudio.google.com/apikey) |
 | `GEMINI_MODEL` | `gemma-4-26b-a4b-it` | Gemma 4 model ID on the Gemini API |
+| `GEMINI_FALLBACK_MODELS` | `gemma-4-31b-it` | comma-separated Gemma 4 models to switch to when the main one errors |
 | `OLLAMA_MODEL` | `gemma4:latest` | offline Gemma 4 tag, e.g. `gemma4:e2b` for slower laptops |
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama server |
 

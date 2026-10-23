@@ -6,6 +6,7 @@ local Gemma 4 in Ollama when the API is unreachable, so the demo never depends o
 
 from __future__ import annotations
 
+import asyncio
 import base64
 from dataclasses import dataclass
 
@@ -58,14 +59,38 @@ class OllamaBackend:
         return {**base, "ok": True, "detail": "Running on this laptop, works offline"}
 
 
+def _is_retryable(exc: httpx.HTTPError) -> bool:
+    """Server errors, rate limits and timeouts are worth another try; a bad key or request is not."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code == 429 or exc.response.status_code >= 500
+    return isinstance(exc, httpx.TransportError)
+
+
 class GeminiBackend:
+    """Gemma 4 through the Gemini API.
+
+    The hosted Gemma endpoints return intermittent 500s and hangs under load, so each call is
+    retried with a short timeout, alternating between the configured Gemma 4 models.
+    """
+
     name = "gemini"
     base_url = "https://generativelanguage.googleapis.com/v1beta/models/{model}"
 
-    def __init__(self, api_key: str, model: str, timeout: float = 120):
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        fallback_models: tuple[str, ...] = (),
+        attempts: int = 4,
+        timeout: float = 30,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ):
         self.api_key = api_key
         self.model = model
+        self.models = (model, *[m for m in fallback_models if m and m != model])
+        self.attempts = max(1, attempts)
         self.timeout = timeout
+        self.transport = transport  # for tests
 
     async def generate(self, prompt: str, image: Image | None = None, schema: dict | None = None) -> Reply:
         # Gemma on the Gemini API has no JSON mode, so the schema lives in the prompt
@@ -76,16 +101,26 @@ class GeminiBackend:
         if image:
             parts.append({"inline_data": {"mime_type": image[1], "data": base64.b64encode(image[0]).decode()}})
         body = {"contents": [{"parts": parts}], "generationConfig": {"temperature": 0.1}}
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.post(
-                self.base_url.format(model=self.model) + ":generateContent",
-                json=body,
-                headers={"x-goog-api-key": self.api_key},
-            )
-            response.raise_for_status()
-        candidate_parts = response.json()["candidates"][0]["content"]["parts"]
-        text = "".join(p.get("text", "") for p in candidate_parts if not p.get("thought"))
-        return Reply(text, f"{self.name}:{self.model}")
+
+        async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as client:
+            for attempt in range(self.attempts):
+                model = self.models[attempt % len(self.models)]
+                try:
+                    response = await client.post(
+                        self.base_url.format(model=model) + ":generateContent",
+                        json=body,
+                        headers={"x-goog-api-key": self.api_key},
+                    )
+                    response.raise_for_status()
+                except httpx.HTTPError as exc:
+                    if attempt == self.attempts - 1 or not _is_retryable(exc):
+                        raise
+                    await asyncio.sleep(0.5 * 2**attempt)
+                    continue
+                candidate_parts = response.json()["candidates"][0]["content"]["parts"]
+                text = "".join(p.get("text", "") for p in candidate_parts if not p.get("thought"))
+                return Reply(text, f"{self.name}:{model}")
+        raise AssertionError("unreachable")
 
     async def warm_up(self) -> None:
         pass  # nothing to load
@@ -162,7 +197,10 @@ def make_backend(settings: Settings) -> OllamaBackend | GeminiBackend | AutoBack
     ollama = OllamaBackend(settings.ollama_url, settings.ollama_model)
     if settings.backend == "ollama":
         return ollama
+    fallbacks = tuple(m.strip() for m in settings.gemini_fallback_models.split(","))
     if settings.backend == "gemini":
-        return GeminiBackend(settings.gemini_api_key, settings.gemini_model)
-    # Short timeout so a slow network falls back quickly during a live demo.
-    return AutoBackend(GeminiBackend(settings.gemini_api_key, settings.gemini_model, timeout=30), ollama)
+        # No offline model to fall back to (e.g. when hosted), so retry harder.
+        return GeminiBackend(settings.gemini_api_key, settings.gemini_model, fallbacks, attempts=4, timeout=30)
+    # Fewer, shorter attempts so a live demo falls back to the laptop quickly.
+    gemini = GeminiBackend(settings.gemini_api_key, settings.gemini_model, fallbacks, attempts=2, timeout=20)
+    return AutoBackend(gemini, ollama)
