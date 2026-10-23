@@ -73,6 +73,12 @@ async def index() -> FileResponse:
     return FileResponse(ROOT / "static" / "index.html")
 
 
+@app.get("/healthz")
+async def healthz() -> dict:
+    """Liveness check for the hosting platform. Makes no model calls, so it costs no API quota."""
+    return {"ok": True}
+
+
 @app.get("/api/health")
 async def health() -> dict:
     return await backend.health()

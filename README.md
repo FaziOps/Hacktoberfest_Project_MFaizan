@@ -6,6 +6,8 @@ It runs offline on a laptop.**
 
 Built by **Muhammad Faizan** ([@FaziOps](https://github.com/FaziOps)) at Hacktoberfest Hack Day Faisalabad 2026.
 
+**Live demo:** _coming soon on DigitalOcean App Platform_ · [Deploy your own](#deploy-to-digitalocean)
+
 ## The problem
 
 Faisalabad is Pakistan's textile capital, yet fabric is still inspected by eye. An inspector watches
@@ -128,6 +130,40 @@ python3 scripts/grade_roll.py /tmp/results.jsonl --roll R-14 --width-cm 150 --le
 ```bash
 pytest
 ```
+
+## Deploy to DigitalOcean
+
+[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/FaziOps/Hacktoberfest_Project_MFaizan/tree/main)
+
+The app runs on [DigitalOcean App Platform](https://www.digitalocean.com/products/app-platform) as a
+single Python service. The hosted version calls **Gemma 4 through the Gemini API only**
+(`BACKEND=gemini`), because the 9.5 GB offline model is too large to host. Run it on a laptop for the
+offline fallback.
+
+**With the button:** click it, sign in, and replace the `GEMINI_API_KEY` placeholder with your key
+when App Platform asks for environment variables. The settings come from
+[`.do/deploy.template.yaml`](.do/deploy.template.yaml).
+
+**By hand:**
+
+1. In the DigitalOcean control panel, go to **Create → App Platform** and connect this GitHub repo,
+   branch `main`. Leave **Autodeploy** on so every push redeploys.
+2. App Platform detects Python from `requirements.txt` and starts the app with the `Procfile`.
+   Set the HTTP port to `8080` if it asks.
+3. Under **Environment variables**, add:
+   - `BACKEND` = `gemini`
+   - `GEMINI_API_KEY` = your key, with **Encrypt** ticked so it is stored as a secret
+4. Pick the smallest plan (1 vCPU, 512 MB) and click **Create app**.
+5. When the build finishes, open the `*.ondigitalocean.app` link. The header light should be green
+   and say "Gemini API".
+
+Notes:
+
+- The link is HTTPS, so phone browsers allow the camera. You can inspect fabric with a phone.
+- The inspection log and photos live on the app's disk and reset whenever it redeploys or restarts.
+- There is no login, so anyone with the link uses your Gemini API quota. Turn the app off
+  (**Settings → Destroy** or scale it down) after judging.
+- The platform's health check uses `/healthz`, which makes no model calls.
 
 ## Model, license and dependencies
 
