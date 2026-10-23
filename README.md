@@ -6,7 +6,7 @@ It runs offline on a laptop.**
 
 Built by **Muhammad Faizan** ([@FaziOps](https://github.com/FaziOps)) at Hacktoberfest Hack Day Faisalabad 2026.
 
-**Live demo:** _coming soon on Render_ · [Deploy your own](#deploy-to-render-free)
+**Live demo:** <https://fabric-inspector.onrender.com> (free plan: allow about a minute to wake up) · [Deploy your own](#deploy-to-render-free)
 
 ## The problem
 
