@@ -6,7 +6,7 @@ It runs offline on a laptop.**
 
 Built by **Muhammad Faizan** ([@FaziOps](https://github.com/FaziOps)) at Hacktoberfest Hack Day Faisalabad 2026.
 
-**Live demo:** _coming soon on DigitalOcean App Platform_ · [Deploy your own](#deploy-to-digitalocean)
+**Live demo:** _coming soon on Render_ · [Deploy your own](#deploy-to-render-free)
 
 ## The problem
 
@@ -130,6 +130,29 @@ python3 scripts/grade_roll.py /tmp/results.jsonl --roll R-14 --width-cm 150 --le
 ```bash
 pytest
 ```
+
+## Deploy to Render (free)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/FaziOps/Hacktoberfest_Project_MFaizan)
+
+The hosted version calls **Gemma 4 through the Gemini API only** (`BACKEND=gemini`), because the
+9.5 GB offline model is too large to host. Run it on a laptop for the offline fallback.
+
+1. Click the button and sign in to Render with GitHub.
+2. Render reads [`render.yaml`](render.yaml) and shows one free web service, `fabric-inspector`.
+3. When it asks for `GEMINI_API_KEY`, paste your key from
+   [Google AI Studio](https://aistudio.google.com/apikey). Render stores it as a secret.
+4. Click **Deploy Blueprint** and wait for the build (about 3 to 5 minutes).
+5. Open the `*.onrender.com` link. The header light should be green and say "Gemini API".
+
+Notes:
+
+- The free plan sleeps after 15 minutes without visitors and takes about a minute to wake up.
+  Open the link a minute before a demo.
+- The inspection log and photos are lost whenever the service sleeps or redeploys.
+- The link is HTTPS, so phone browsers allow the camera.
+- There is no login, so anyone with the link uses your Gemini API quota. Suspend the service after
+  judging (**Settings → Suspend Web Service**).
 
 ## Deploy to DigitalOcean
 

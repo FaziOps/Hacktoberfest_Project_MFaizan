@@ -1,0 +1,18 @@
+# Render Blueprint, used by the "Deploy to Render" button in the README.
+# The server runs Gemma 4 through the Gemini API only: the offline Ollama model is too large to host.
+services:
+  - type: web
+    name: fabric-inspector
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: BACKEND
+        value: gemini
+      - key: GEMINI_MODEL
+        value: gemma-4-26b-a4b-it
+      - key: GEMINI_API_KEY
+        sync: false # Render asks for the value when the Blueprint is created
