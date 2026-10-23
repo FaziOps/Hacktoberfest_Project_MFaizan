@@ -2,6 +2,8 @@
 name: fabric-inspection
 description: Inspect photos of woven or knitted fabric for defects (holes, stains, slubs, broken yarns, mis-weaves, colour shading, creases), score them with the textile industry's 4-point system, grade the roll A/B/C, and write a supervisor note in English and Urdu. Use when the user shares fabric or textile photos, asks about fabric quality, roll grading, or a mill inspection report.
 license: MIT
+metadata:
+  author: Muhammad Faizan
 compatibility: Needs Python 3.9+. The bundled inspection script calls Gemma 4 through a local Ollama server (default model gemma4:latest).
 ---
 

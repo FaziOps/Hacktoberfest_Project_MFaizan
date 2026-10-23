@@ -4,7 +4,7 @@
 4-point system, grades the roll and writes the supervisor's report in Urdu and English.
 It runs offline on a laptop.**
 
-Built at Hacktoberfest Hack Day Faisalabad 2026.
+Built by **Muhammad Faizan** ([@FaziOps](https://github.com/FaziOps)) at Hacktoberfest Hack Day Faisalabad 2026.
 
 ## The problem
 
@@ -142,7 +142,7 @@ pytest
 | python-multipart | see `requirements.txt` | Apache-2.0 |
 | pytest (tests only) | see `requirements.txt` | MIT |
 
-This project's code is released under the [MIT License](LICENSE).
+This project's code is released under the [MIT License](LICENSE), copyright © 2026 Muhammad Faizan.
 
 ## Hackathon categories
 
@@ -157,3 +157,7 @@ This project's code is released under the [MIT License](LICENSE).
 - It is a decision aid. Inspectors confirm defects before a roll is rejected.
 - Next: mount the camera over an inspection table and capture automatically as fabric moves;
   fine-tune on a labelled defect dataset such as TILDA; add Punjabi voice notes through Gemma 4's audio input.
+
+## Author
+
+**Muhammad Faizan** · GitHub [@FaziOps](https://github.com/FaziOps)

@@ -40,7 +40,11 @@ async def lifespan(_: FastAPI):
     task.cancel()
 
 
-app = FastAPI(title="Fabric Inspector", lifespan=lifespan)
+app = FastAPI(
+    title="Fabric Inspector",
+    contact={"name": "Muhammad Faizan", "url": "https://github.com/FaziOps"},
+    lifespan=lifespan,
+)
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 app.mount("/images", StaticFiles(directory=store.images_dir), name="images")
 
